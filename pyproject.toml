@@ -1,0 +1,120 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "turnpike"
+version = "0.1.0"
+description = "Typed envelope and telemetry primitives for LLM cost attribution with OpenTelemetry instrumentation"
+requires-python = ">=3.11"
+readme = "README.md"
+license = "MIT"
+authors = [
+    {name = "Luciana Reynaud Ferreira"},
+]
+keywords = ["llm", "observability", "opentelemetry", "cost", "finops", "ai", "gateway", "telemetry"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: System :: Monitoring",
+    "Typing :: Typed",
+]
+dependencies = [
+    # OpenTelemetry core
+    "opentelemetry-api>=1.30,<2.0",
+    "opentelemetry-sdk>=1.30,<2.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.30,<2.0",
+    "opentelemetry-semantic-conventions>=0.50b0",
+]
+
+[project.urls]
+Homepage = "https://github.com/lucianareynaud/turnpike"
+Repository = "https://github.com/lucianareynaud/turnpike"
+Documentation = "https://github.com/lucianareynaud/turnpike#readme"
+Changelog = "https://github.com/lucianareynaud/turnpike/blob/main/CHANGELOG.md"
+Issues = "https://github.com/lucianareynaud/turnpike/issues"
+
+[project.optional-dependencies]
+# LLM provider SDKs — install only what you need
+openai = ["openai>=2.20,<3.0"]
+anthropic = ["anthropic>=0.40,<1.0"]
+all = ["openai>=2.20,<3.0", "anthropic>=0.40,<1.0"]
+# Reference app (FastAPI demo routes, evals, reporting)
+ref = [
+    "fastapi>=0.134",
+    "uvicorn[standard]>=0.41",
+    "httpx>=0.28",
+    "pydantic>=2.10",
+    "tiktoken>=0.7",
+    "opentelemetry-instrumentation-fastapi>=0.50b0",
+]
+dev = [
+    "openai>=2.20,<3.0",
+    "anthropic>=0.40,<1.0",
+    "fastapi>=0.134",
+    "uvicorn[standard]>=0.41",
+    "httpx>=0.28",
+    "pydantic>=2.10",
+    "tiktoken>=0.7",
+    "opentelemetry-instrumentation-fastapi>=0.50b0",
+    "pytest==9.0.2",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.9",
+    "mypy>=1.13",
+]
+
+# ── Setuptools package discovery ─────────────────────────────────────
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["turnpike*"]
+exclude = ["tests*"]
+
+# ── Ruff ─────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+exclude = [
+    ".venv", ".venv_test", ".venv*", ".git",
+    "__pycache__", "artifacts", "*.egg-info",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "W", "B", "C4", "S", "PT", "SIM", "TCH"]
+ignore = ["B008", "B904", "S101", "S105", "TC002", "TC003"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+# ── Mypy ─────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.11"
+packages = ["turnpike"]
+warn_return_any = true
+warn_unused_ignores = true
+warn_unused_configs = true
+no_implicit_optional = true
+strict_equality = true
+# OTel SDK and semconv packages lack complete type stubs.
+# Required for py.typed compliance with current dependency set.
+# Remove when opentelemetry-api ships inline types.
+ignore_missing_imports = true
+
+# ── Pytest ───────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --tb=short"
+asyncio_mode = "auto"
+filterwarnings = [
+    "error::ResourceWarning",
+    "ignore::DeprecationWarning:anyio",
+    "ignore::DeprecationWarning:starlette",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m not slow')",
+    "integration: marks tests that require external services",
+]

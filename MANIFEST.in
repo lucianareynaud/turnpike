@@ -1,0 +1,17 @@
+include LICENSE
+include README.md
+include pyproject.toml
+
+recursive-include src/turnpike *.py py.typed
+
+global-exclude __pycache__
+global-exclude *.pyc
+global-exclude *.egg-info
+
+prune app
+prune evals
+prune reporting
+prune tests
+prune examples
+prune artifacts
+prune .github

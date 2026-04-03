@@ -1,0 +1,52 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv*/
+venv/
+env/
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+*.whl
+
+# C extensions (built locally by deps like tiktoken)
+*.so
+*.dylib
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*~
+*.swp
+*.swo
+
+# Secrets
+.env
+.env.*
+
+# Runtime artifacts (turnpike telemetry, reports)
+artifacts/
+
+# Python version pinning (pyenv, asdf)
+.python-version

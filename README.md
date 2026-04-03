@@ -42,13 +42,12 @@ gateway, providers, and OTel instrumentation exist to populate it.
 
 ## Why Turnpike
 
-Distributed tracing was built for request-reply microservices. LLM systems
-break that model: calls fan out non-deterministically, costs compound
-across retries and fallbacks, and a single "request" may span multiple
-providers.
+Distributed tracing was built for request-reply microservices. LLM
+systems break that model: costs compound across retries and fallbacks,
+and a single "request" may span multiple providers.
 
-Existing observability tools solve *visibility*. Turnpike solves
-*accountability* — who spent what, on which model, under which policy.
+Standard tracing gives you call visibility. Turnpike adds structured
+cost attribution — who spent what, on which model, under which policy.
 
 | Concern | Tracing alone | Turnpike |
 |---|---|---|
@@ -59,10 +58,9 @@ Existing observability tools solve *visibility*. Turnpike solves
 | Retry / fallback | Span count heuristics | `retry_count` + `fallback_triggered` + `circuit_state` |
 | Streaming latency | No convention | `time_to_first_token_ms` + `finish_reason` |
 
-**What Turnpike is not.** It is not a proxy (like LiteLLM), not a
-dashboard (like LangSmith), and not a prompt management tool. It is a
-typed envelope and telemetry primitives layer that sits between your LLM
-calls and your observability backend.
+**What Turnpike is not.** It is not a proxy, not a dashboard, and not a
+prompt management tool. It is a typed envelope and telemetry layer that
+sits between your LLM calls and your observability backend.
 
 Read more: [Why Distributed Tracing Doesn't Model LLM Agent Observability](https://lucianareynaud.medium.com/why-distributed-tracing-doesnt-model-llm-agent-observability-c376bd3ac2fc)
 
@@ -120,7 +118,10 @@ reconstructed = LLMRequestEnvelope.from_dict(event)
 
 Register a route policy, then call any LLM through the gateway. Every
 call returns a `GatewayResult` carrying token counts, cost, and the full
-envelope:
+envelope.
+
+Gateway examples use OpenAI. Requires `pip install turnpike[openai]`
+and a valid `OPENAI_API_KEY`.
 
 ```python
 import asyncio
@@ -163,7 +164,9 @@ asyncio.run(main())
 
 ### Gateway call (multi-turn messages)
 
-Pass a full conversation history using `messages` instead of `prompt`:
+Pass a full conversation history using `messages` instead of `prompt`.
+Assumes the `/summarize` route policy from the previous example is
+already registered.
 
 ```python
 import asyncio
@@ -192,7 +195,8 @@ asyncio.run(main())
 
 Stream responses token-by-token. The `GatewayStream` yields `StreamChunk`
 objects; after iteration, `.result` holds the full `GatewayResult` with
-envelope, cost, and TTFT:
+envelope, cost, and TTFT. Assumes the `/summarize` route policy is
+registered.
 
 ```python
 import asyncio
@@ -268,88 +272,24 @@ Every call also appends one JSON line to `~/.turnpike/telemetry.jsonl`
 
 ## Envelope Field Reference
 
-`LLMRequestEnvelope` is a frozen dataclass with fields across six
-semantic blocks. Four fields are required; the rest default to `None` or
-safe enum values.
+`LLMRequestEnvelope` is a frozen dataclass. Four fields are required;
+the rest default to `None` or safe enum values.
 
-### Identity and context
+**Required:** `schema_version`, `request_id`, `tenant_id`, `route`
 
-| Field | Type | Required | Purpose |
-|---|---|---|---|
-| `schema_version` | `str` | yes | Envelope schema version |
-| `request_id` | `str` | yes | Unique identifier for this LLM call |
-| `tenant_id` | `str` | yes | Tenant for multi-tenant cost attribution |
-| `route` | `str` | yes | Logical route or operation name |
-| `trace_id` | `str \| None` | | OTel trace ID for cross-service correlation |
-| `span_id` | `str \| None` | | OTel span ID |
-| `caller_id` | `str \| None` | | Service or user that initiated the call |
-| `use_case` | `str \| None` | | Business use case label |
-| `session_id` | `str \| None` | | Session identifier for multi-turn correlation |
-| `task_id` | `str \| None` | | Task or sub-task identifier within a session |
+**Optional fields by semantic group:**
 
-### Model selection
+- **Identity / context** — `caller_id`, `session_id`, `task_id`, `use_case`, `trace_id`, `span_id`
+- **Model selection** — `provider_requested`, `provider_selected`, `model_requested`, `model_selected`, `model_tier`, `routing_decision`, `routing_reason`
+- **Economics** — `tokens_in`, `tokens_out`, `tokens_total`, `estimated_cost_usd`, `cost_source` (default `DEGRADED_UNKNOWN`)
+- **Reliability** — `latency_ms`, `time_to_first_token_ms`, `status` (default `OK`), `error_type`, `retry_count`, `fallback_triggered`, `fallback_reason`, `circuit_state`, `streaming`, `finish_reason`
+- **Governance** — `policy_input_class`, `policy_decision`, `policy_mode`, `redaction_applied`, `pii_detected`
+- **Cache / eval** — `cache_eligible`, `cache_strategy`, `cache_hit`, `cache_key_fingerprint`, `cache_key_algorithm`, `cache_lookup_confidence`, `eval_hooks`, `audit_tags`
 
-| Field | Type | Default | Purpose |
-|---|---|---|---|
-| `provider_requested` | `str \| None` | | Provider the caller asked for |
-| `model_requested` | `str \| None` | | Model the caller asked for |
-| `provider_selected` | `str \| None` | | Provider actually used |
-| `model_selected` | `str \| None` | | Model actually used |
-| `model_tier` | `str \| None` | | Logical tier (e.g. `"cheap"`, `"expensive"`) |
-| `routing_decision` | `str \| None` | | How the model was selected |
-| `routing_reason` | `str \| None` | | Human-readable routing rationale |
-
-### Economics
-
-| Field | Type | Default | Purpose |
-|---|---|---|---|
-| `tokens_in` | `int \| None` | | Input token count |
-| `tokens_out` | `int \| None` | | Output token count |
-| `tokens_total` | `int \| None` | | Sum of input + output tokens |
-| `estimated_cost_usd` | `float \| None` | | Estimated cost in USD |
-| `cost_source` | `CostSource` | `DEGRADED_UNKNOWN` | Provenance of cost estimation |
-
-### Reliability
-
-| Field | Type | Default | Purpose |
-|---|---|---|---|
-| `latency_ms` | `float \| None` | | Wall-clock duration including retries |
-| `time_to_first_token_ms` | `float \| None` | | Time to first streamed token |
-| `status` | `EnvelopeStatus` | `OK` | Terminal status: `ok`, `cached`, `error`, `degraded`, `denied` |
-| `error_type` | `str \| None` | | Categorised error type |
-| `retry_count` | `int \| None` | | Number of retry attempts |
-| `fallback_triggered` | `bool \| None` | | Whether a fallback model was used |
-| `fallback_reason` | `str \| None` | | Why fallback was triggered |
-| `circuit_state` | `CircuitState \| None` | | Circuit breaker state |
-| `streaming` | `bool \| None` | | Whether the call used streaming |
-| `finish_reason` | `str \| None` | | Provider finish reason (e.g. `stop`, `length`) |
-
-### Governance
-
-| Field | Type | Default | Purpose |
-|---|---|---|---|
-| `policy_input_class` | `str \| None` | | Classification of the input content |
-| `policy_decision` | `str \| None` | | Policy engine decision |
-| `policy_mode` | `str \| None` | | Policy enforcement mode |
-| `redaction_applied` | `bool \| None` | | Whether PII redaction was applied |
-| `pii_detected` | `bool \| None` | | Whether PII was detected |
-
-### Cache and evaluation
-
-| Field | Type | Default | Purpose |
-|---|---|---|---|
-| `cache_eligible` | `bool \| None` | | Whether this request was eligible for caching |
-| `cache_strategy` | `str \| None` | | Cache strategy |
-| `cache_hit` | `bool \| None` | | Whether the response came from cache |
-| `cache_key_fingerprint` | `str \| None` | | Cache key hash |
-| `cache_key_algorithm` | `str \| None` | | Hash algorithm used for cache key |
-| `cache_lookup_confidence` | `float \| None` | | Confidence score for semantic cache matches |
-| `eval_hooks` | `tuple[str, ...]` | `()` | Eval hook names that ran on this request |
-| `audit_tags` | `dict[str, str]` | `{}` | Extensible key-value pairs for audit trails |
-
-**Schema evolution:** new optional fields may appear in minor versions.
-Consumers should tolerate unknown keys. Removing or renaming a field
-requires a major version change.
+Full type annotations are in [`envelope.py`](src/turnpike/envelope.py).
+New optional fields may appear in minor versions. Consumers should
+tolerate unknown keys. Removing or renaming a field requires a major
+version bump.
 
 ## Top-Level API
 
@@ -376,10 +316,8 @@ from turnpike import (
 ```
 
 Vendor-specific providers (`OpenAIProvider`, `AnthropicProvider`) and
-internal helpers (`get_provider`, `available_providers`, `get_pricing`,
-`get_route_policy`, `get_model_for_tier`, `clear_route_policies`) are
-importable from their submodules but are not part of the top-level public
-contract.
+internal helpers are importable from their submodules but are not part
+of the top-level contract.
 
 ## Architecture
 
@@ -455,33 +393,20 @@ methods require a major version change.
 
 ## Versioning
 
-This is an early release with a narrow public API. The package follows
-[Semantic Versioning](https://semver.org/).
+This package follows [Semantic Versioning](https://semver.org/).
 
-**Top-level imports** — all names in `turnpike.__all__` are covered by
-SemVer. Internal module paths (`turnpike.gateway.client`, etc.) are
-implementation details and may change in minor versions.
-
-**Envelope schema** — `LLMRequestEnvelope` carries a `schema_version`
-field. New optional fields may appear in minor versions. Removing or
-renaming fields requires a major version bump.
-
-**Provider contract** — `ProviderBase` has 2 abstract methods and 3
-optional methods with safe defaults. New abstract methods require a major
-version bump.
-
-**OTel attributes** — `turnpike.*` custom attributes are covered by
-SemVer. `gen_ai.*` attributes follow OTel GenAI Semantic Conventions and
-may change upstream.
-
-**Cost model** — pricing values are configuration, not API. They may be
-updated in any version. Use `register_pricing()` for custom models.
+- **Public API** — all names in `turnpike.__all__` are covered by SemVer. Internal module paths may change in minor versions.
+- **Envelope schema** — new optional fields may appear in minor versions. Removing or renaming fields requires a major version bump.
+- **Provider contract** — `provider_name` and `complete()` are abstract and stable. New abstract methods require a major version bump.
+- **OTel attributes** — `turnpike.*` attributes are covered by SemVer. `gen_ai.*` attributes follow upstream OTel conventions.
+- **Cost model** — pricing values are configuration, not API, and may change in any version.
 
 ## Reference Application
 
 The `app/` directory contains a FastAPI application demonstrating
 Turnpike in a real HTTP service. It is **not** part of
-`pip install turnpike`:
+`pip install turnpike`. To run it, clone the repo and install the
+reference dependencies:
 
 ```bash
 pip install turnpike[ref]

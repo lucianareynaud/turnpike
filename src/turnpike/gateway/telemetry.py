@@ -359,9 +359,7 @@ def _record_otel_metrics(
 
     # ── turnpike.estimated_cost_usd ─────────────────────────────────────────
     model_tier = (
-        (metadata or {}).get("model_tier")
-        or (metadata or {}).get("routing_decision")
-        or "unknown"
+        (metadata or {}).get("model_tier") or (metadata or {}).get("routing_decision") or "unknown"
     )
 
     _cost_counter.add(

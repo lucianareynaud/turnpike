@@ -12,9 +12,7 @@ class TestModelTierDimension:
     @patch("turnpike.gateway.telemetry._request_counter")
     @patch("turnpike.gateway.telemetry._cost_counter")
     @patch("turnpike.gateway.telemetry._operation_duration_histogram")
-    def test_prefers_model_tier_over_routing_decision(
-        self, mock_dur, mock_cost, mock_req
-    ):
+    def test_prefers_model_tier_over_routing_decision(self, mock_dur, mock_cost, mock_req):
         _ = mock_dur
         _record_otel_metrics(
             route="/summarize",

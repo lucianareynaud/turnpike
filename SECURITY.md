@@ -2,43 +2,31 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
-| < 0.1   | :x:                |
+Security-related fixes, if any, may be applied only to the latest published version.
 
 ## Reporting a Vulnerability
 
-**Please do not open public issues for security vulnerabilities.**
+Please do not open public issues for suspected security vulnerabilities.
 
 Use [GitHub Security Advisories](https://github.com/lucianareynaud/turnpike/security/advisories/new)
-to report vulnerabilities privately. You will receive an acknowledgement
-within 48 hours and a detailed response within 7 business days.
+to report vulnerabilities privately.
 
-## Trust Model
+## Security Notes
 
-### What Turnpike trusts
+Turnpike is a library, not a hosted service. Its security posture depends heavily on the way it is integrated and deployed.
 
-- **Environment variables** — configuration values (`OTEL_*`, provider API keys)
-  are assumed to come from a secure runtime (e.g. a secret manager or CI vault).
-- **Provider SDK integrity** — the OpenAI, Anthropic, and other provider SDKs
-  are assumed to be unmodified packages installed from PyPI.
-- **OTel exporter endpoints** — the configured OTLP collector endpoint is assumed
-  to be a trusted, authenticated receiver.
+Operational assumptions:
+- Secrets such as provider API keys and OTLP credentials should be managed by the host environment.
+- Provider SDKs and dependencies should be installed from trusted sources and pinned in a lockfile.
+- Telemetry backends and OTLP collector endpoints should be treated as trusted infrastructure.
 
-### What Turnpike does NOT trust
+Operational cautions:
+- Prompts, completions, and metadata may contain sensitive or untrusted content.
+- Review what is emitted into logs, spans, and telemetry sinks before using the library in production.
 
-- **User prompt content** — prompts and completions may contain arbitrary text
-  and are treated as untrusted data in all instrumentation paths.
-- **Metadata values** — model names, tag values, and other user-supplied metadata
-  are validated and sanitised before being emitted as span attributes.
+## Recommendations
 
-## Recommendations for Production Deployments
-
-- Store API keys and OTLP credentials in a dedicated secret manager
-  (e.g. AWS Secrets Manager, HashiCorp Vault, GCP Secret Manager)
-  rather than plain environment variables or `.env` files.
-- Restrict network egress so that OTel exporters can only reach your
-  authorised collector endpoints.
-- Pin all dependencies (including transitive ones) with a lockfile and
-  run `pip-audit` in CI to catch known vulnerabilities.
+For production deployments:
+- store credentials in a secret manager rather than committed files
+- restrict network egress to authorised telemetry endpoints
+- pin dependencies and run dependency vulnerability checks in CI

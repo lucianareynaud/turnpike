@@ -183,7 +183,7 @@ async def main():
         route_name="/summarize",
         context=ctx,
     )
-    print(result.content)
+    print(result.text)
 
 asyncio.run(main())
 ```

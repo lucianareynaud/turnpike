@@ -20,9 +20,9 @@ This module has two explicitly separated responsibilities:
 
   Layer 2 — JSONL local artifact (SECONDARY, for reporting pipeline)
   ──────────────────────────────────────────────────────────────────
-  Appends one JSON line per call to artifacts/logs/telemetry.jsonl.
-  This file is consumed by reporting/make_report.py to generate Markdown
-  reports. It is intentionally kept as a simple local file so the reporting
+  Appends one JSON line per call to ~/.turnpike/telemetry.jsonl
+  (configurable via TURNPIKE_TELEMETRY_PATH env var).
+  It is intentionally kept as a simple local file so the reporting
   pipeline works without a running OTel backend.
 
   This is a deliberate dual-write: OTel for live observability, JSONL for

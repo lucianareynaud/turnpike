@@ -42,9 +42,15 @@ class BedrockProvider(ProviderBase):
     def provider_name(self) -> str:
         return "bedrock"
 
-    async def complete(self, model, messages, **kwargs) -> ProviderResponse:
-        # Provider-specific API call
-        return ProviderResponse(content="...", model=model, usage={...})
+    async def complete(self, messages, model, max_output_tokens) -> ProviderResponse:
+        response = await my_bedrock_call(messages, model, max_output_tokens)
+        return ProviderResponse(
+            text=response.text,
+            tokens_in=response.usage.input,
+            tokens_out=response.usage.output,
+            finish_reason=response.stop_reason,
+            response_model=response.model,
+        )
 
     def is_retryable(self, error: Exception) -> bool:
         return isinstance(error, SomeTransientError)
@@ -92,7 +98,7 @@ Policies are resolved at `call_llm()` time via the `route_name` parameter. If no
 Turnpike uses [Ruff](https://docs.astral.sh/ruff/) for linting and formatting. Configuration lives in `pyproject.toml`:
 
 - Line length: 100
-- Lint rules: `E`, `F`, `I`, `UP`, `W`, `B`, `C4`
+- Lint rules: `E`, `F`, `I`, `UP`, `W`, `B`, `C4`, `S`, `PT`, `SIM`, `TCH`
 - Quote style: double
 - Indent style: spaces
 
@@ -115,14 +121,16 @@ src/turnpike/           ← pip-installable library
   __init__.py           ← public API surface (__all__)
   envelope.py           ← LLMRequestEnvelope dataclass
   context.py            ← LLMRequestContext
+  semconv.py            ← turnpike.* attribute constants
+  py.typed              ← PEP 561 marker
   gateway/
     client.py           ← call_llm() — the gateway choke point
     provider.py         ← ProviderBase, built-in providers
-    telemetry.py        ← emit_event() — OTel + JSONL dual-write
+    telemetry.py        ← OTel metrics + JSONL dual-write
     cost_model.py       ← estimate_cost(), pricing data
     policies.py         ← RoutePolicy, register_route_policy
     otel_setup.py       ← setup_otel(), shutdown_otel()
-    semconv.py          ← OTel attribute constants
+    semconv.py          ← gen_ai.* semantic convention constants
 app/                    ← reference FastAPI app (not pip-installed)
 evals/                  ← eval harness
 tests/                  ← test suite

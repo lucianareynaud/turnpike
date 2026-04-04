@@ -6,10 +6,10 @@
 
 # Turnpike
 
-A small, typed Python package for LLM cost attribution. Every LLM call
+A typed Python package for LLM cost attribution. Every LLM call
 produces one `LLMRequestEnvelope` — a frozen dataclass that records who
-called what model, how many tokens it consumed, what it cost, whether it
-retried, and under which governance policy it ran.
+called what model, how many tokens it consumed, what it cost, and whether
+it retried or fell back.
 
 ```json
 {
@@ -47,20 +47,23 @@ systems break that model: costs compound across retries and fallbacks,
 and a single "request" may span multiple providers.
 
 Standard tracing gives you call visibility. Turnpike adds structured
-cost attribution — who spent what, on which model, under which policy.
+cost attribution — who spent what, on which model, with what provenance.
 
 | Concern | Tracing alone | Turnpike |
 |---|---|---|
 | Token counts | Manual span attributes | `tokens_in` / `tokens_out` / `tokens_total` |
 | Cost attribution | Not modeled | `estimated_cost_usd` + `cost_source` provenance |
-| Multi-tenant billing | Custom baggage | `tenant_id` + `caller_id` + `budget_namespace` |
-| Policy enforcement | Out of scope | `policy_decision` + `redaction_applied` |
+| Multi-tenant billing | Custom baggage | `tenant_id` + `caller_id` + `audit_tags` |
+| Policy auditability | Out of scope | `policy_decision` + `policy_mode` (caller-supplied) |
 | Retry / fallback | Span count heuristics | `retry_count` + `fallback_triggered` + `circuit_state` |
 | Streaming latency | No convention | `time_to_first_token_ms` + `finish_reason` |
 
 **What Turnpike is not.** It is not a proxy, not a dashboard, and not a
 prompt management tool. It is a typed envelope and telemetry layer that
-sits between your LLM calls and your observability backend.
+sits between your LLM calls and your observability backend. It does not
+implement policy enforcement, PII detection, or evaluation — it provides
+typed, versioned fields where your implementations record their outputs
+into the same correlated envelope.
 
 Read more: [Why Distributed Tracing Doesn't Model LLM Agent Observability](https://lucianareynaud.medium.com/why-distributed-tracing-doesnt-model-llm-agent-observability-c376bd3ac2fc)
 
@@ -101,6 +104,10 @@ envelope = LLMRequestEnvelope(
     finish_reason="end_turn",
     session_id="sess-0042",
     task_id="planning-step",
+    # Caller-supplied governance fields (your policy engine populates these):
+    policy_decision="allow",
+    policy_mode="enforce",
+    pii_detected=False,
 )
 
 event = envelope.to_dict()  # JSON-safe dict, enums serialized as strings
@@ -277,14 +284,28 @@ the rest default to `None` or safe enum values.
 
 **Required:** `schema_version`, `request_id`, `tenant_id`, `route`
 
-**Optional fields by semantic group:**
+### Gateway-managed fields
 
-- **Identity / context** — `caller_id`, `session_id`, `task_id`, `use_case`, `trace_id`, `span_id`
-- **Model selection** — `provider_requested`, `provider_selected`, `model_requested`, `model_selected`, `model_tier`, `routing_decision`, `routing_reason`
+Populated automatically by `call_llm()` and `call_llm_stream()`. No
+caller action needed.
+
+- **Identity / context** — `request_id`, `trace_id`, `span_id`
+- **Model selection** — `provider_selected`, `model_selected`, `model_tier`, `routing_decision`, `routing_reason`
 - **Economics** — `tokens_in`, `tokens_out`, `tokens_total`, `estimated_cost_usd`, `cost_source` (default `DEGRADED_UNKNOWN`)
-- **Reliability** — `latency_ms`, `time_to_first_token_ms`, `status` (default `OK`), `error_type`, `retry_count`, `fallback_triggered`, `fallback_reason`, `circuit_state`, `streaming`, `finish_reason`
+- **Reliability** — `latency_ms`, `time_to_first_token_ms`, `status` (default `OK`), `error_type`, `retry_count`, `streaming`, `finish_reason`
+
+### Caller-supplied fields
+
+Passed by the application via `LLMRequestContext` or direct envelope
+construction. Turnpike defines the schema and serialization for these
+fields but does not implement the underlying concerns — your policy
+engine, PII detector, cache layer, and eval framework populate them.
+
+- **Identity / context** — `tenant_id`, `caller_id`, `session_id`, `task_id`, `use_case`
+- **Model selection** — `provider_requested`, `model_requested`
 - **Governance** — `policy_input_class`, `policy_decision`, `policy_mode`, `redaction_applied`, `pii_detected`
 - **Cache / eval** — `cache_eligible`, `cache_strategy`, `cache_hit`, `cache_key_fingerprint`, `cache_key_algorithm`, `cache_lookup_confidence`, `eval_hooks`, `audit_tags`
+- **Reliability** — `fallback_triggered`, `fallback_reason`, `circuit_state`
 
 Full type annotations are in [`envelope.py`](src/turnpike/envelope.py).
 New optional fields may appear in minor versions. Consumers should

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-04-04
+
+### Changed
+
+- Clarified field ownership in README and internal envelope documentation: gateway-managed vs caller-supplied
+- Reframed policy-related fields in the comparison table from enforcement to policy auditability
+- Added ownership-oriented docstrings and field-group comments to `envelope.py`
+
 ## [0.1.0] - 2026-04-03
 
 Initial public release. Intentionally narrow core focused on typed LLM
@@ -32,12 +40,12 @@ cost attribution with OpenTelemetry instrumentation.
 ### Provider SDK dependencies
 
 Provider SDKs are optional extras, not hard dependencies:
-
 ```bash
 pip install turnpike[openai]      # OpenAI only
 pip install turnpike[anthropic]   # Anthropic only
 pip install turnpike[all]         # Both providers
 ```
 
-[Unreleased]: https://github.com/lucianareynaud/turnpike/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/lucianareynaud/turnpike/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/lucianareynaud/turnpike/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/lucianareynaud/turnpike/releases/tag/v0.1.0

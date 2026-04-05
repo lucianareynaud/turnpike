@@ -1,14 +1,15 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "turnpike"
-version = "0.1.0"
+version = "0.1.1"
 description = "Typed envelope and telemetry primitives for LLM cost attribution with OpenTelemetry instrumentation"
 requires-python = ">=3.11"
 readme = "README.md"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     {name = "Luciana Reynaud Ferreira"},
 ]

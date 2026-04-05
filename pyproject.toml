@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,10 +9,20 @@ description = "Typed envelope and telemetry primitives for LLM cost attribution 
 requires-python = ">=3.11"
 readme = "README.md"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [
-    {name = "Luciana Reynaud Ferreira"},
+    { name = "Luciana Reynaud Ferreira" },
 ]
-keywords = ["llm", "observability", "opentelemetry", "cost", "finops", "ai", "gateway", "telemetry"]
+keywords = [
+    "llm",
+    "observability",
+    "opentelemetry",
+    "cost",
+    "finops",
+    "ai",
+    "gateway",
+    "telemetry",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -24,7 +34,6 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    # OpenTelemetry core
     "opentelemetry-api>=1.30,<2.0",
     "opentelemetry-sdk>=1.30,<2.0",
     "opentelemetry-exporter-otlp-proto-http>=1.30,<2.0",
@@ -39,11 +48,12 @@ Changelog = "https://github.com/lucianareynaud/turnpike/blob/main/CHANGELOG.md"
 Issues = "https://github.com/lucianareynaud/turnpike/issues"
 
 [project.optional-dependencies]
-# LLM provider SDKs — install only what you need
 openai = ["openai>=2.20,<3.0"]
 anthropic = ["anthropic>=0.40,<1.0"]
-all = ["openai>=2.20,<3.0", "anthropic>=0.40,<1.0"]
-# Reference app (FastAPI demo routes, evals, reporting)
+all = [
+    "openai>=2.20,<3.0",
+    "anthropic>=0.40,<1.0",
+]
 ref = [
     "fastapi>=0.134",
     "uvicorn[standard]>=0.41",
@@ -67,18 +77,24 @@ dev = [
     "mypy>=1.13",
 ]
 
-# ── Setuptools package discovery ─────────────────────────────────────
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["turnpike*"]
 exclude = ["tests*"]
 
-# ── Ruff ─────────────────────────────────────────────────────────────
+[tool.setuptools.package-data]
+turnpike = ["py.typed"]
+
 [tool.ruff]
 line-length = 100
 exclude = [
-    ".venv", ".venv_test", ".venv*", ".git",
-    "__pycache__", "artifacts", "*.egg-info",
+    ".venv",
+    ".venv_test",
+    ".venv*",
+    ".git",
+    "__pycache__",
+    "artifacts",
+    "*.egg-info",
 ]
 
 [tool.ruff.lint]
@@ -90,7 +106,6 @@ quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
 
-# ── Mypy ─────────────────────────────────────────────────────────────
 [tool.mypy]
 python_version = "3.11"
 packages = ["turnpike"]
@@ -99,12 +114,8 @@ warn_unused_ignores = true
 warn_unused_configs = true
 no_implicit_optional = true
 strict_equality = true
-# OTel SDK and semconv packages lack complete type stubs.
-# Required for py.typed compliance with current dependency set.
-# Remove when opentelemetry-api ships inline types.
 ignore_missing_imports = true
 
-# ── Pytest ───────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --tb=short"

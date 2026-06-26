@@ -71,7 +71,7 @@ dev = [
     "pydantic>=2.10",
     "tiktoken>=0.7",
     "opentelemetry-instrumentation-fastapi>=0.50b0",
-    "pytest==9.0.2",
+    "pytest==9.1.1",
     "pytest-asyncio>=0.23",
     "ruff>=0.9",
     "mypy>=1.13",
